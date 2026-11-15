@@ -1,0 +1,34 @@
+# App + a real Qdrant server, so memories survive restarts.
+#
+#   cp .env.example .env     # then set API_KEY
+#   docker compose up --build
+#
+# Only the app is published. Qdrant stays on the private compose network on purpose:
+# it has no authentication here, so it must never be reachable from the internet.
+services:
+  qdrant:
+    # Keep this close to the qdrant-client version in your environment (`pip show qdrant-client`).
+    image: qdrant/qdrant:v1.20.0
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+
+  app:
+    build: .
+    depends_on:
+      - qdrant
+    ports:
+      - "8000:8000"
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      API_KEY: ${API_KEY:?Set API_KEY in .env before starting}
+      EMBEDDER: ${EMBEDDER:-hash}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-30}
+      # Optional: a real language model. Leave unset to run in offline echo mode.
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+    restart: unless-stopped
+
+volumes:
+  qdrant_storage:
