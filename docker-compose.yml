@@ -31,6 +31,8 @@ services:
       LLM_EFFORT: ${LLM_EFFORT:-low}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      EXTRACTOR_LLM_MODEL: ${EXTRACTOR_LLM_MODEL:-}
+      REPLY_LLM_MODEL: ${REPLY_LLM_MODEL:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
     restart: unless-stopped
 

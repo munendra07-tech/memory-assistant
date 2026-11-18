@@ -6,7 +6,7 @@ forbidden text (forbidden text is another user's data, so a hit means a privacy 
 
     python evals/run_evals.py
 
-    # with a real language model as the fact extractor (spends money; set the LLM_* variables first)
+    # with a real language model as the fact extractor (spends money; set LLM_* or EXTRACTOR_LLM_* first)
     python evals/run_evals.py --extractor llm --max-llm-calls 60
 """
 
@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
         if planned > args.max_llm_calls:
             print(f"Refusing to start: {planned} planned calls exceed --max-llm-calls {args.max_llm_calls}.")
             return 2
-        budgeted = BudgetedLLM(llm_from_env(), args.max_llm_calls)
+        budgeted = BudgetedLLM(llm_from_env("EXTRACTOR"), args.max_llm_calls)
         extractor = extractor_from_name("llm", budgeted)
 
     print(f"embedder: {args.embedder}, extractor: {args.extractor}\n")

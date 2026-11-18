@@ -132,37 +132,55 @@ class BudgetedLLM:
         return self.inner.complete(system, user)
 
 
-def _anthropic_from_env() -> AnthropicLLM:
-    model = os.getenv("LLM_MODEL")
+def _setting(name: str, role: str | None, empty_counts: bool = False) -> str | None:
+    """Read LLM_<name>, preferring <ROLE>_LLM_<name> when a role (e.g. EXTRACTOR, REPLY) is given.
+
+    An empty role value normally means "not set" (docker compose passes unset variables as empty
+    strings). `empty_counts=True` keeps it, for LLM_EFFORT where an empty value turns effort off.
+    """
+    if role:
+        specific = os.getenv(f"{role}_{name}")
+        if specific or (empty_counts and specific is not None):
+            return specific
+    return os.getenv(name)
+
+
+def _anthropic_from_env(role: str | None = None) -> AnthropicLLM:
+    model = _setting("LLM_MODEL", role)
     if not model:
         raise RuntimeError("LLM_PROVIDER=anthropic needs LLM_MODEL set to the Claude model id you chose.")
     api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("LLM_API_KEY")
     if not api_key:
         raise RuntimeError("LLM_PROVIDER=anthropic needs ANTHROPIC_API_KEY (or LLM_API_KEY) set.")
-    effort = os.getenv("LLM_EFFORT", "low").strip().lower()
+    raw_effort = _setting("LLM_EFFORT", role, empty_counts=True)
+    effort = "low" if raw_effort is None else raw_effort.strip().lower()
     return AnthropicLLM(
         model,
         api_key=api_key,
         effort=None if effort in ("", "none") else effort,
-        max_tokens=int(os.getenv("LLM_MAX_TOKENS", "1024")),
+        max_tokens=int(_setting("LLM_MAX_TOKENS", role) or "1024"),
     )
 
 
-def llm_from_env() -> LLM:
+def llm_from_env(role: str | None = None) -> LLM:
     """Pick the language model from the environment.
 
     LLM_PROVIDER=anthropic uses Claude (needs LLM_MODEL and ANTHROPIC_API_KEY). Otherwise a real
     OpenAI-style model is used only if LLM_API_KEY and LLM_MODEL are set; with neither, run offline.
+
+    `role` lets one job use its own model: with role="EXTRACTOR", EXTRACTOR_LLM_MODEL (and
+    EXTRACTOR_LLM_EFFORT, EXTRACTOR_LLM_MAX_TOKENS) win over the shared LLM_* values. Use
+    role="REPLY" for the chat reply model.
     """
     provider = os.getenv("LLM_PROVIDER", "").strip().lower()
     if provider == "anthropic":
-        return _anthropic_from_env()
+        return _anthropic_from_env(role)
     if provider not in ("", "openai-compatible"):
         raise ValueError(f"unknown LLM_PROVIDER {provider!r}; use 'anthropic' or 'openai-compatible'")
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         return EchoLLM()
-    model = os.getenv("LLM_MODEL")
+    model = _setting("LLM_MODEL", role)
     if not model:
         raise RuntimeError("LLM_API_KEY is set but LLM_MODEL is not. Set LLM_MODEL to a model name.")
     return OpenAICompatibleLLM(os.getenv("LLM_BASE_URL", "https://api.openai.com/v1"), api_key, model)

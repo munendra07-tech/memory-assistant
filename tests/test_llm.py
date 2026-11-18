@@ -122,7 +122,10 @@ def test_budgeted_llm_rejects_a_negative_limit():
 
 # ---- choosing the model from the environment ----
 
-ENV_VARS = ["LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL", "LLM_BASE_URL", "LLM_EFFORT", "LLM_MAX_TOKENS", "ANTHROPIC_API_KEY"]
+ENV_VARS = [
+    "LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL", "LLM_BASE_URL", "LLM_EFFORT", "LLM_MAX_TOKENS", "ANTHROPIC_API_KEY",
+    "EXTRACTOR_LLM_MODEL", "EXTRACTOR_LLM_EFFORT", "EXTRACTOR_LLM_MAX_TOKENS", "REPLY_LLM_MODEL", "REPLY_LLM_EFFORT",
+]
 
 
 @pytest.fixture
@@ -185,3 +188,72 @@ def test_a_missing_anthropic_package_gives_a_clear_install_hint(monkeypatch):
     monkeypatch.setitem(sys.modules, "anthropic", None)  # makes `import anthropic` raise ImportError
     with pytest.raises(RuntimeError, match=r"pip install -e"):
         AnthropicLLM("some-model-id")
+
+
+# ---- one model per job ----
+
+
+@pytest.fixture
+def anthropic_env(clean_env):
+    pytest.importorskip("anthropic")
+    clean_env.setenv("LLM_PROVIDER", "anthropic")
+    clean_env.setenv("ANTHROPIC_API_KEY", "not-a-real-key")
+    return clean_env
+
+
+def test_each_job_can_use_its_own_model(anthropic_env):
+    anthropic_env.setenv("LLM_MODEL", "shared-model")
+    anthropic_env.setenv("EXTRACTOR_LLM_MODEL", "cheap-model")
+    anthropic_env.setenv("REPLY_LLM_MODEL", "better-model")
+    assert llm_from_env("EXTRACTOR").model == "cheap-model"
+    assert llm_from_env("REPLY").model == "better-model"
+    assert llm_from_env().model == "shared-model"  # no role: the shared value
+
+
+def test_a_job_without_its_own_setting_falls_back_to_the_shared_one(anthropic_env):
+    anthropic_env.setenv("LLM_MODEL", "shared-model")
+    anthropic_env.setenv("LLM_EFFORT", "medium")
+    anthropic_env.setenv("EXTRACTOR_LLM_EFFORT", "low")
+    extractor = llm_from_env("EXTRACTOR")
+    assert (extractor.model, extractor.effort) == ("shared-model", "low")  # model shared, effort overridden
+    reply = llm_from_env("REPLY")
+    assert (reply.model, reply.effort) == ("shared-model", "medium")
+
+
+def test_a_role_setting_alone_is_enough(anthropic_env):
+    anthropic_env.setenv("EXTRACTOR_LLM_MODEL", "cheap-model")
+    assert llm_from_env("EXTRACTOR").model == "cheap-model"
+    with pytest.raises(RuntimeError, match="LLM_MODEL"):
+        llm_from_env("REPLY")  # nothing set for this job and no shared value
+
+
+def test_the_app_builds_the_extractor_and_reply_models_for_their_own_jobs(clean_env, monkeypatch):
+    import app.main as main
+    from app.extract import LLMFactExtractor
+    from app.memory import MemoryStore
+    from app.embeddings import HashEmbedder
+
+    class Marker(EchoLLM):
+        def __init__(self, role):
+            self.role = role
+
+    roles = []
+
+    def fake(role=None):
+        roles.append(role)
+        return Marker(role)
+
+    monkeypatch.setattr(main, "llm_from_env", fake)
+    monkeypatch.setenv("EXTRACTOR", "llm")
+    # Marker is an EchoLLM subclass, so the "needs a real model" check would refuse it; swap in a plain object.
+    monkeypatch.setattr(main, "extractor_from_name", lambda name, llm: LLMFactExtractor(llm))
+    store = MemoryStore(HashEmbedder())
+    main.create_app(store=store, api_key="k", rate_limit_per_minute=0)
+    assert roles == ["REPLY", "EXTRACTOR"]
+
+
+def test_an_empty_role_model_does_not_hide_the_shared_one(anthropic_env):
+    # docker compose passes unset variables through as empty strings.
+    anthropic_env.setenv("LLM_MODEL", "shared-model")
+    anthropic_env.setenv("EXTRACTOR_LLM_MODEL", "")
+    assert llm_from_env("EXTRACTOR").model == "shared-model"

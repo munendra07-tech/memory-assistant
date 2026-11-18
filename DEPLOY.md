@@ -74,6 +74,7 @@ in-memory mode and **loses everything on restart**.)
 | `ANTHROPIC_API_KEY`, `LLM_EFFORT`, `LLM_MAX_TOKENS` | With `anthropic` | Key from the Anthropic console, effort level (or `none`), and the reply length cap |
 | `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` | Optional | An OpenAI-style model. Without any model settings: offline echo mode |
 | `EXTRACTOR` | Optional | `rules` (default) or `llm`, which needs a real model |
+| `EXTRACTOR_LLM_MODEL`, `REPLY_LLM_MODEL` | Optional | A separate model for fact extraction / chat replies (also `*_LLM_EFFORT`, `*_LLM_MAX_TOKENS`). Fall back to `LLM_MODEL` |
 | `EMBEDDER` | Optional | `hash` (default, offline baseline) or `fastembed` (needs the `[local]` extra) |
 | `RATE_LIMIT_PER_MINUTE` | Optional | Calls to `/chat` per client address per minute. Default 30, `0` disables |
 | `PORT` | Set by most hosts | Port the server listens on. Default 8000 |

@@ -23,7 +23,7 @@ class CountingModel:
 
 def test_llm_eval_refuses_to_start_when_planned_calls_exceed_the_cap(monkeypatch, capsys):
     model = CountingModel()
-    monkeypatch.setattr(run_evals, "llm_from_env", lambda: model)
+    monkeypatch.setattr(run_evals, "llm_from_env", lambda role=None: model)
     assert main(["--extractor", "llm", "--max-llm-calls", "5"]) == 2
     out = capsys.readouterr().out
     assert "calls planned" in out and "Refusing" in out
@@ -32,7 +32,7 @@ def test_llm_eval_refuses_to_start_when_planned_calls_exceed_the_cap(monkeypatch
 
 def test_llm_eval_runs_within_the_cap_and_reports_the_call_count(monkeypatch, capsys):
     model = CountingModel()
-    monkeypatch.setattr(run_evals, "llm_from_env", lambda: model)
+    monkeypatch.setattr(run_evals, "llm_from_env", lambda role=None: model)
     main(["--extractor", "llm", "--max-llm-calls", "100"])
     out = capsys.readouterr().out
     assert "model calls: 36" in out

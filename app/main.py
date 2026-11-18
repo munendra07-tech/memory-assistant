@@ -62,8 +62,12 @@ def create_app(
     rate_limit_per_minute: Optional[int] = None,
 ) -> FastAPI:
     store = store or _default_store()
-    llm = llm or llm_from_env()
-    extractor = extractor or extractor_from_name(os.getenv("EXTRACTOR", "rules"), llm)
+    llm = llm or llm_from_env("REPLY")
+    extractor_name = os.getenv("EXTRACTOR", "rules")
+    if extractor is None:
+        # The extractor may use a different (cheaper) model than the chat replies.
+        extractor_llm = llm_from_env("EXTRACTOR") if extractor_name == "llm" else llm
+        extractor = extractor_from_name(extractor_name, extractor_llm)
     api_key = api_key if api_key is not None else os.getenv("API_KEY")
     if rate_limit_per_minute is None:
         rate_limit_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))

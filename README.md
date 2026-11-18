@@ -66,7 +66,11 @@ export ANTHROPIC_API_KEY=...        # from your Anthropic console; never commit 
 export LLM_MODEL=<model id>         # the Claude model you chose
 export LLM_EFFORT=low               # or "none" for a model that does not take an effort setting
 
-# measure it: one model call per conversation turn, hard-capped
+# optional: a different model per job (each overrides LLM_MODEL for that job only)
+export EXTRACTOR_LLM_MODEL=<small model id>   # fact extraction, runs on every message
+export REPLY_LLM_MODEL=<better model id>      # the reply the user reads
+
+# measure it: one model call per conversation turn, hard-capped (uses EXTRACTOR_LLM_MODEL if set)
 python evals/run_evals.py --extractor llm --embedder fastembed --max-llm-calls 60
 
 # serve with it
