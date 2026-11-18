@@ -11,8 +11,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "anthropic>=1"]
 local = ["fastembed>=0.3"]
+anthropic = ["anthropic>=1"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

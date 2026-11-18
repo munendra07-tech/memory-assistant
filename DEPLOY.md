@@ -13,7 +13,8 @@ How to run Memory Assistant in a container and put it on the internet safely.
 | App talking to a real Qdrant **server** (`QDRANT_URL`) | **Not run.** Only Qdrant's in-memory mode was tested. |
 | `qdrant/qdrant:v1.20.0` image tag exists | **Not checked.** If the pull fails, pick a tag close to `pip show qdrant-client`. |
 | Real embedding model (fastembed, bge-small-en-v1.5) in the evals | Run; results in the README. **Not run** inside Docker or the server |
-| Real language model | **Not run.** No key |
+| Claude client (`LLM_PROVIDER=anthropic`) | Tested offline with a fake client and real SDK response objects. **Not run against the real API** |
+| Any real language model, end to end | **Not run.** No key yet |
 | HTTPS, hosting-provider steps below | **Not run.** Written from general practice. Check each provider's current docs. |
 
 So the first thing to do on your machine is run the steps in "Run it locally" and fix anything that breaks.
@@ -69,7 +70,10 @@ in-memory mode and **loses everything on restart**.)
 | `API_KEY` | Yes in production | Clients send it as the `X-API-Key` header |
 | `QDRANT_URL` | For persistence | e.g. `http://qdrant:6333`. Unset means in-memory (data lost on restart) |
 | `QDRANT_API_KEY` | For a hosted Qdrant | Passed to the Qdrant client |
-| `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` | Optional | A real language model. Without them: offline echo mode |
+| `LLM_PROVIDER` | Optional | `anthropic` for Claude (needs `ANTHROPIC_API_KEY` and `LLM_MODEL`), or leave empty for an OpenAI-style server |
+| `ANTHROPIC_API_KEY`, `LLM_EFFORT`, `LLM_MAX_TOKENS` | With `anthropic` | Key from the Anthropic console, effort level (or `none`), and the reply length cap |
+| `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` | Optional | An OpenAI-style model. Without any model settings: offline echo mode |
+| `EXTRACTOR` | Optional | `rules` (default) or `llm`, which needs a real model |
 | `EMBEDDER` | Optional | `hash` (default, offline baseline) or `fastembed` (needs the `[local]` extra) |
 | `RATE_LIMIT_PER_MINUTE` | Optional | Calls to `/chat` per client address per minute. Default 30, `0` disables |
 | `PORT` | Set by most hosts | Port the server listens on. Default 8000 |

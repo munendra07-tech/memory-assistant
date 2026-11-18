@@ -86,3 +86,36 @@ def test_delete_all_memories_for_a_user_only(client):
     assert client.delete("/memories/u1").json() == {"deleted": 2}
     assert client.get("/memories/u1").json() == []
     assert len(client.get("/memories/u2").json()) == 1
+
+
+def test_a_failed_fact_extraction_returns_502_and_stores_nothing():
+    class BrokenExtractor:
+        def extract(self, message):
+            raise RuntimeError("model unavailable")
+
+    app = create_app(store=MemoryStore(HashEmbedder()), llm=EchoLLM(), extractor=BrokenExtractor())
+    client = TestClient(app)
+    response = client.post("/chat", json={"user_id": "u1", "message": "I live in Pune."})
+    assert response.status_code == 502
+    assert "extraction failed" in response.json()["detail"]
+    assert client.get("/memories/u1").json() == []
+
+
+def test_llm_extracted_keys_make_a_changed_fact_replace_the_old_one():
+    from app.extract import LLMFactExtractor
+
+    class ScriptedModel:
+        """Stands in for a language model: returns a keyed fact for each message."""
+
+        def complete(self, system, user):
+            city = "Delhi" if "Delhi" in user else "Pune"
+            return '[{"text": "User lives in %s", "key": "lives_in"}]' % city
+
+    app = create_app(store=MemoryStore(HashEmbedder()), llm=EchoLLM(), extractor=LLMFactExtractor(ScriptedModel()))
+    client = TestClient(app)
+    client.post("/chat", json={"user_id": "u1", "message": "I moved to Pune"})
+    changed = client.post("/chat", json={"user_id": "u1", "message": "Now I am based in Delhi"}).json()
+    assert [(m["text"], m["previous_text"]) for m in changed["memories_updated"]] == [
+        ("User lives in Delhi", "User lives in Pune")
+    ]
+    assert [m["text"] for m in client.get("/memories/u1").json()] == ["User lives in Delhi"]

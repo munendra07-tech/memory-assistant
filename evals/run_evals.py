@@ -5,6 +5,9 @@ checks whether the top-K retrieved memories contain the expected text and none o
 forbidden text (forbidden text is another user's data, so a hit means a privacy leak).
 
     python evals/run_evals.py
+
+    # with a real language model as the fact extractor (spends money; set the LLM_* variables first)
+    python evals/run_evals.py --extractor llm --max-llm-calls 60
 """
 
 from __future__ import annotations
@@ -19,7 +22,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.embeddings import embedder_from_name  # noqa: E402
-from app.extract import FactExtractor, RuleFactExtractor  # noqa: E402
+from app.extract import FactExtractor, extractor_from_name  # noqa: E402
+from app.llm import BudgetedLLM, llm_from_env  # noqa: E402
 from app.memory import MemoryStore  # noqa: E402
 
 TOP_K = 3
@@ -57,7 +61,7 @@ def run_case(case: dict, extractor: FactExtractor, embedder) -> dict:
 
 
 def run_all(extractor: FactExtractor | None = None, embedder=None, cases_path: Path | None = None) -> list[dict]:
-    extractor = extractor or RuleFactExtractor()
+    extractor = extractor or extractor_from_name("rules")
     embedder = embedder or embedder_from_name("hash")
     cases = load_cases(cases_path or ROOT / "evals" / "cases.jsonl")
     return [run_case(c, extractor, embedder) for c in cases]
@@ -67,9 +71,25 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--embedder", choices=["hash", "fastembed"], default="hash")
     parser.add_argument("--min-pass", type=int, default=0, help="exit 1 if fewer cases pass (a regression gate for CI)")
+    parser.add_argument("--extractor", choices=["rules", "llm"], default="rules")
+    parser.add_argument(
+        "--max-llm-calls", type=int, default=60, help="hard cap on language-model calls (spend guard, --extractor llm)"
+    )
     args = parser.parse_args(argv)
-    print(f"embedder: {args.embedder}\n")
-    results = run_all(embedder=embedder_from_name(args.embedder))
+
+    extractor = None
+    budgeted = None
+    if args.extractor == "llm":
+        planned = sum(len(c["turns"]) for c in load_cases(ROOT / "evals" / "cases.jsonl"))
+        print(f"The llm extractor makes one model call per conversation turn: {planned} calls planned.")
+        if planned > args.max_llm_calls:
+            print(f"Refusing to start: {planned} planned calls exceed --max-llm-calls {args.max_llm_calls}.")
+            return 2
+        budgeted = BudgetedLLM(llm_from_env(), args.max_llm_calls)
+        extractor = extractor_from_name("llm", budgeted)
+
+    print(f"embedder: {args.embedder}, extractor: {args.extractor}\n")
+    results = run_all(extractor=extractor, embedder=embedder_from_name(args.embedder))
     by_category: dict[str, list[bool]] = defaultdict(list)
     print(f"{'case':<24}{'category':<12}{'result':<8}details")
     for r in results:
@@ -83,6 +103,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{category:<12}{sum(outcomes)}/{len(outcomes)}")
     total = sum(r["passed"] for r in results)
     print(f"{'overall':<12}{total}/{len(results)}")
+    if budgeted is not None:
+        inner = budgeted.inner
+        print(f"\nmodel calls: {budgeted.calls}")
+        if hasattr(inner, "input_tokens"):
+            print(f"tokens used: {inner.input_tokens} input, {inner.output_tokens} output")
     if total < args.min_pass:
         print(f"\nFAILED: {total} cases passed, expected at least {args.min_pass}")
         return 1

@@ -25,6 +25,10 @@ services:
       EMBEDDER: ${EMBEDDER:-hash}
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-30}
       # Optional: a real language model. Leave unset to run in offline echo mode.
+      EXTRACTOR: ${EXTRACTOR:-rules}
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_EFFORT: ${LLM_EFFORT:-low}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}

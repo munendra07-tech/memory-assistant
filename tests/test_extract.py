@@ -1,6 +1,7 @@
 import pytest
 
-from app.extract import Fact, LLMFactExtractor, RuleFactExtractor
+from app.extract import Fact, LLMFactExtractor, RuleFactExtractor, extractor_from_name
+from app.llm import EchoLLM
 
 
 @pytest.mark.parametrize(
@@ -58,3 +59,43 @@ def test_single_valued_facts_get_a_key(message, key):
 @pytest.mark.parametrize("message", ["I love tea.", "I have a dog.", "I am vegetarian.", "I don't eat mushrooms."])
 def test_multi_valued_facts_get_no_key(message):
     assert RuleFactExtractor().extract(message)[0].key is None
+
+
+# ---- the language-model extractor assigns keys, but only from a fixed list ----
+
+def test_llm_extractor_accepts_objects_with_keys():
+    llm = _FakeLLM('[{"text": "User lives in Pune", "key": "lives_in"}, {"text": "User loves tea", "key": null}]')
+    assert LLMFactExtractor(llm).extract("x") == [Fact("User lives in Pune", "lives_in"), Fact("User loves tea", None)]
+
+
+@pytest.mark.parametrize("key", ["name", "lives_in", "works_as", "works_at", "attr:favourite_colour"])
+def test_allowed_keys_are_kept(key):
+    llm = _FakeLLM(json_for("User fact", key))
+    assert LLMFactExtractor(llm).extract("x") == [Fact("User fact", key)]
+
+
+@pytest.mark.parametrize("key", ["", "Lives_In", "attr:", "attr:Has Space", "attr:" + "a" * 41, "anything_else", 5, ["name"]])
+def test_invented_or_malformed_keys_are_dropped_not_trusted(key):
+    llm = _FakeLLM(json_for("User fact", key))
+    assert LLMFactExtractor(llm).extract("x") == [Fact("User fact", None)]
+
+
+def test_llm_extractor_skips_items_it_cannot_use():
+    llm = _FakeLLM('[{"text": 5}, {"key": "name"}, {"text": "   "}, null, {"text": "User likes tea"}]')
+    assert LLMFactExtractor(llm).extract("x") == [Fact("User likes tea", None)]
+
+
+def json_for(text, key):
+    import json
+    return json.dumps([{"text": text, "key": key}])
+
+
+def test_extractor_from_name():
+    assert isinstance(extractor_from_name("rules"), RuleFactExtractor)
+    assert isinstance(extractor_from_name("llm", _FakeLLM("[]")), LLMFactExtractor)
+    with pytest.raises(RuntimeError):
+        extractor_from_name("llm", EchoLLM())  # offline echo cannot extract facts
+    with pytest.raises(RuntimeError):
+        extractor_from_name("llm", None)
+    with pytest.raises(ValueError):
+        extractor_from_name("nope")

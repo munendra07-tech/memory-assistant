@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from qdrant_client import QdrantClient
 
 from app.embeddings import embedder_from_name
-from app.extract import FactExtractor, RuleFactExtractor
+from app.extract import FactExtractor, extractor_from_name
 from app.llm import LLM, llm_from_env
 from app.memory import CREATED, UPDATED, MemoryStore
 from app.ratelimit import RateLimiter
@@ -62,8 +62,8 @@ def create_app(
     rate_limit_per_minute: Optional[int] = None,
 ) -> FastAPI:
     store = store or _default_store()
-    extractor = extractor or RuleFactExtractor()
     llm = llm or llm_from_env()
+    extractor = extractor or extractor_from_name(os.getenv("EXTRACTOR", "rules"), llm)
     api_key = api_key if api_key is not None else os.getenv("API_KEY")
     if rate_limit_per_minute is None:
         rate_limit_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
@@ -104,8 +104,12 @@ def create_app(
         except Exception as exc:  # network and provider errors must not look like a server bug
             raise HTTPException(status_code=502, detail=f"language model call failed: {exc}") from exc
 
+        try:
+            facts_found = extractor.extract(req.message)
+        except Exception as exc:  # a failed extraction must not look like "nothing to remember"
+            raise HTTPException(status_code=502, detail=f"fact extraction failed: {exc}") from exc
         stored, updated = [], []
-        for fact in extractor.extract(req.message):
+        for fact in facts_found:
             memory, outcome = store.add(req.user_id, fact.text, key=fact.key)
             if outcome == CREATED:
                 stored.append(memory)

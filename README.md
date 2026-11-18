@@ -57,6 +57,27 @@ EMBEDDER=fastembed uvicorn app.main:app         # serve with it
 The eval results below include a run with this model. The server path with `EMBEDDER=fastembed`
 has not been exercised.
 
+### Use Claude as the language model (optional, costs money)
+
+```bash
+pip install -e ".[anthropic]"
+export LLM_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=...        # from your Anthropic console; never commit it
+export LLM_MODEL=<model id>         # the Claude model you chose
+export LLM_EFFORT=low               # or "none" for a model that does not take an effort setting
+
+# measure it: one model call per conversation turn, hard-capped
+python evals/run_evals.py --extractor llm --embedder fastembed --max-llm-calls 60
+
+# serve with it
+EXTRACTOR=llm uvicorn app.main:app
+```
+
+The eval prints how many calls were planned and refuses to start if they exceed `--max-llm-calls`;
+afterwards it prints the calls and tokens actually used, so you can work out the real cost. Set a monthly
+spend limit in the Anthropic console before running anything. The client is tested offline (a fake client
+and real SDK response objects); it has **not** been run against the real API yet.
+
 By default memory is held in Qdrant's in-memory mode and is lost on restart. Set `QDRANT_URL`
 to use a real server. To use a language model set `LLM_API_KEY` and `LLM_MODEL` (and
 `LLM_BASE_URL` for non-OpenAI servers); without them the app runs in an offline echo mode.
@@ -104,8 +125,8 @@ How to read this:
 ## Roadmap
 
 - [x] Run the evals with a real embedding model and record the numbers (see Evaluation).
-- [ ] Use `LLMFactExtractor` with a real model and re-run the evals.
-- [ ] Let the LLM extractor assign keys, so it can trigger replacement too.
+- [ ] Run the evals with `--extractor llm` and record the real numbers (client and tests written; not yet run against the API).
+- [x] Let the LLM extractor assign keys, so it can trigger replacement too (keys limited to a fixed list).
 - [x] Add a memory-update path (a changed fact replaces the old one).
 - [ ] Build the image and run it against a real Qdrant server (written, not yet run).
 - [ ] Deploy and add the live URL here.

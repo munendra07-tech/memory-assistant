@@ -5,8 +5,8 @@ When a new fact has the same key as a stored one, the store replaces the old val
 adding a second, contradictory memory. Facts with no key (likes, possessions) accumulate.
 
 `RuleFactExtractor` is an offline baseline that handles common first-person patterns.
-`LLMFactExtractor` asks a language model instead and is the upgrade path. It cannot assign
-keys yet, so it never triggers replacement.
+`LLMFactExtractor` asks a language model instead and is the upgrade path. It may assign keys too,
+but only from a fixed list, so a model cannot invent a key that overwrites an unrelated memory.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass
 from typing import Callable, Optional, Protocol
 
-from app.llm import LLM
+from app.llm import LLM, EchoLLM
 
 
 @dataclass(frozen=True)
@@ -76,11 +76,25 @@ class RuleFactExtractor:
         return facts
 
 
+ALLOWED_KEYS = {"name", "lives_in", "works_as", "works_at"}
+_ATTR_KEY = re.compile(r"^attr:[a-z0-9_]{1,40}$")
+
 _EXTRACTION_PROMPT = (
-    "Extract durable facts about the user from their message. "
-    "Return only a JSON array of short third-person strings, for example "
-    '["User lives in Pune"]. Return [] if there is nothing worth remembering.'
+    "Extract durable facts about the user from their message. Return ONLY a JSON array of objects, "
+    'each {"text": "<short third-person fact>", "key": "<key or null>"}. '
+    'Example: [{"text": "User lives in Pune", "key": "lives_in"}]. '
+    "Use a key only for a fact that can have a single value that later replaces the old one: "
+    '"name", "lives_in", "works_as" (job title), "works_at" (employer), or "attr:<snake_case_name>" for another '
+    'single-valued attribute such as "attr:favourite_colour". Use null for anything that can accumulate '
+    "(likes, hobbies, pets, possessions) and whenever you are unsure. "
+    "Ignore questions and small talk. Return [] if there is nothing worth remembering."
 )
+
+
+def _clean_key(key) -> Optional[str]:
+    if isinstance(key, str) and (key in ALLOWED_KEYS or _ATTR_KEY.match(key)):
+        return key
+    return None
 
 
 class LLMFactExtractor:
@@ -96,4 +110,24 @@ class LLMFactExtractor:
             data = json.loads(raw[start : end + 1])
         except json.JSONDecodeError:
             return []
-        return [Fact(item.strip()) for item in data if isinstance(item, str) and item.strip()]
+        facts: list[Fact] = []
+        for item in data:
+            if isinstance(item, str):
+                text, key = item, None  # plain strings are accepted, with no key
+            elif isinstance(item, dict) and isinstance(item.get("text"), str):
+                text, key = item["text"], _clean_key(item.get("key"))
+            else:
+                continue
+            if text.strip():
+                facts.append(Fact(text.strip(), key))
+        return facts
+
+
+def extractor_from_name(name: str, llm: Optional[LLM] = None) -> FactExtractor:
+    if name == "rules":
+        return RuleFactExtractor()
+    if name == "llm":
+        if llm is None or isinstance(llm, EchoLLM):
+            raise RuntimeError("EXTRACTOR=llm needs a real language model; set LLM_PROVIDER and the related variables.")
+        return LLMFactExtractor(llm)
+    raise ValueError(f"unknown extractor {name!r}; choose 'rules' or 'llm'")
