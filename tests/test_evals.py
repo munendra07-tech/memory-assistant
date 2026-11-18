@@ -2,7 +2,7 @@ from evals.run_evals import main
 
 
 def test_eval_gate_passes_at_the_recorded_baseline(capsys):
-    assert main(["--min-pass", "16"]) == 0
+    assert main(["--min-pass", "17"]) == 0
     assert "overall" in capsys.readouterr().out
 
 

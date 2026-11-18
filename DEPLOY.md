@@ -12,7 +12,8 @@ How to run Memory Assistant in a container and put it on the internet safely.
 | `docker build` of the Dockerfile | **Not run.** The build environment had no Docker daemon. |
 | App talking to a real Qdrant **server** (`QDRANT_URL`) | **Not run.** Only Qdrant's in-memory mode was tested. |
 | `qdrant/qdrant:v1.20.0` image tag exists | **Not checked.** If the pull fails, pick a tag close to `pip show qdrant-client`. |
-| Real language model, real embedding model | **Not run.** No keys, and the model download was blocked. |
+| Real embedding model (fastembed, bge-small-en-v1.5) in the evals | Run; results in the README. **Not run** inside Docker or the server |
+| Real language model | **Not run.** No key |
 | HTTPS, hosting-provider steps below | **Not run.** Written from general practice. Check each provider's current docs. |
 
 So the first thing to do on your machine is run the steps in "Run it locally" and fix anything that breaks.

@@ -46,7 +46,7 @@ python evals/run_evals.py       # memory evals (offline baseline)
 uvicorn app.main:app --reload   # serve at http://127.0.0.1:8000/docs
 ```
 
-### Try a real embedding model (not yet verified)
+### Try a real embedding model
 
 ```bash
 pip install -e ".[local]"                       # adds fastembed (local ONNX model, no API key)
@@ -54,8 +54,8 @@ python evals/run_evals.py --embedder fastembed  # downloads BAAI/bge-small-en-v1
 EMBEDDER=fastembed uvicorn app.main:app         # serve with it
 ```
 
-This path is written but **has not been run against the real model**: the environment this was
-built in blocked the model download. Run it, then record the real numbers in the table below.
+The eval results below include a run with this model. The server path with `EMBEDDER=fastembed`
+has not been exercised.
 
 By default memory is held in Qdrant's in-memory mode and is lost on restart. Set `QDRANT_URL`
 to use a real server. To use a language model set `LLM_API_KEY` and `LLM_MODEL` (and
@@ -74,34 +74,36 @@ security checklist, deployment options, and exactly which parts have and have no
 
 ## Evaluation
 
-`evals/cases.jsonl` holds 21 small conversations. Each plays facts into a fresh store, asks one
-question, and passes if the top-3 retrieved memories contain the expected text and none of
-another user's text.
+`evals/cases.jsonl` holds 27 small conversations. Each plays facts into a fresh store, asks one
+question, and passes if the top-K retrieved memories (K=3, or 1 for the `ranked` cases) contain the
+expected text and none of another user's text.
 
-Offline baseline (hash embedder + rule-based extractor), measured with `python evals/run_evals.py`:
+Measured with `python evals/run_evals.py [--embedder fastembed]` on 2026-11-18. The fact extractor
+is the rule-based one in both columns, so only the embedder differs.
 
-| Category | Passed |
-|---|---|
-| direct (word overlap with the question) | 8 / 8 |
-| isolation (no leakage between users) | 2 / 2 |
-| update (a changed fact replaces the old one) | 6 / 6 |
-| paraphrase ("reside" vs "live") | 0 / 4 |
-| extraction (fact not stated as "I ...") | 0 / 1 |
-| **overall** | **16 / 21** |
-
-The update cases were written first: before the update feature existed, 4 of the 6 failed
-(2 of 6 passed, both being guards against over-replacing).
+| Category | Cases | Hash baseline | Real model (bge-small-en-v1.5) |
+|---|---|---|---|
+| direct (word overlap with the question) | 8 | 8 | 8 |
+| isolation (no leakage between users) | 2 | 2 | 2 |
+| update (a changed fact replaces the old one) | 6 | 6 | 6 |
+| paraphrase, one stored fact | 4 | 0 | 4 |
+| ranked, right fact among 6, must be top-1 | 6 | 1 | 6 |
+| extraction (fact not stated as "I ...") | 1 | 0 | 0 |
+| **overall** | **27** | **17** | **26** |
 
 How to read this:
-- The baseline only matches shared words, so it fails every paraphrase. That is expected, and it
-  is the gap a real embedding model should close.
-- The rule-based extractor only understands simple "I live in / I like ..." sentences, so it
-  misses facts phrased any other way.
-- Twenty-one cases is a small suite. Treat the numbers as a regression check, not a benchmark.
+- The `paraphrase` cases store a single fact, so a real model returns it whatever it understands.
+  They were too easy, which is why the `ranked` cases exist: the right fact must beat five
+  distractors. The hash baseline gets 1 of 6 there, the real model 6 of 6. That is the meaningful comparison.
+- The one remaining failure is the rule-based extractor, which only understands simple "I live in /
+  I like ..." sentences. A language-model extractor is the next step (not yet run).
+- The update cases were written first: before the update feature existed, 4 of the 6 failed.
+- Twenty-seven cases and one model is a small test. Treat the numbers as a regression check and a
+  fair comparison, not a benchmark. CI runs the hash baseline and fails below 17 of 27.
 
 ## Roadmap
 
-- [ ] Run the evals with `--embedder fastembed` and record the real numbers (adapter written, model not yet run).
+- [x] Run the evals with a real embedding model and record the numbers (see Evaluation).
 - [ ] Use `LLMFactExtractor` with a real model and re-run the evals.
 - [ ] Let the LLM extractor assign keys, so it can trigger replacement too.
 - [x] Add a memory-update path (a changed fact replaces the old one).

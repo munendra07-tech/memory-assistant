@@ -37,7 +37,7 @@ def run_case(case: dict, extractor: FactExtractor, embedder) -> dict:
             store.add(turn["user_id"], fact.text, key=fact.key)
 
     question = case["question"]
-    retrieved = store.search(question["user_id"], question["text"], limit=TOP_K, threshold=THRESHOLD)
+    retrieved = store.search(question["user_id"], question["text"], limit=case.get("k", TOP_K), threshold=THRESHOLD)
     haystack = " ".join(m.text.lower() for m in retrieved)
 
     missing = [e for e in case["expect"] if e.lower() not in haystack]
