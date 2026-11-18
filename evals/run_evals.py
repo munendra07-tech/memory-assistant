@@ -63,10 +63,11 @@ def run_all(extractor: FactExtractor | None = None, embedder=None, cases_path: P
     return [run_case(c, extractor, embedder) for c in cases]
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--embedder", choices=["hash", "fastembed"], default="hash")
-    args = parser.parse_args()
+    parser.add_argument("--min-pass", type=int, default=0, help="exit 1 if fewer cases pass (a regression gate for CI)")
+    args = parser.parse_args(argv)
     print(f"embedder: {args.embedder}\n")
     results = run_all(embedder=embedder_from_name(args.embedder))
     by_category: dict[str, list[bool]] = defaultdict(list)
@@ -82,6 +83,9 @@ def main() -> int:
         print(f"{category:<12}{sum(outcomes)}/{len(outcomes)}")
     total = sum(r["passed"] for r in results)
     print(f"{'overall':<12}{total}/{len(results)}")
+    if total < args.min_pass:
+        print(f"\nFAILED: {total} cases passed, expected at least {args.min_pass}")
+        return 1
     return 0
 
 

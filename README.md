@@ -1,5 +1,7 @@
 # Memory Assistant
 
+[![tests](https://github.com/munendra07-tech/memory-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/munendra07-tech/memory-assistant/actions/workflows/tests.yml)
+
 A FastAPI chat service that remembers facts about each user across conversations, with the
 memory stored in [Qdrant](https://qdrant.tech/), plus an evaluation suite that measures how
 well it remembers.
@@ -39,7 +41,7 @@ POST /chat {user_id, message}
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-pytest                          # unit and API tests
+pytest                          # unit and API tests (CI runs them on Python 3.10 and 3.12)
 python evals/run_evals.py       # memory evals (offline baseline)
 uvicorn app.main:app --reload   # serve at http://127.0.0.1:8000/docs
 ```
