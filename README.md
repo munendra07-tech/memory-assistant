@@ -2,12 +2,45 @@
 
 [![tests](https://github.com/munendra07-tech/memory-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/munendra07-tech/memory-assistant/actions/workflows/tests.yml)
 
-A FastAPI chat service that remembers facts about each user across conversations, with the
-memory stored in [Qdrant](https://qdrant.tech/), plus an evaluation suite that measures how
-well it remembers.
+**Long-term memory for AI assistants, one user at a time.** It remembers what each person tells it,
+keeps their memories separate from everyone else's, updates facts when they change, and measures how
+well it all works. Use it as a REST service or plug it into Claude Desktop and other agents over
+[MCP](https://modelcontextprotocol.io). Built on [Qdrant](https://qdrant.tech/).
 
-**Status: work in progress.** The memory layer, API, tests and evals run offline. It has not
-been deployed, and the language-model client has not been tested against a real provider.
+**What makes it different is that every claim is measured and every gap is written down.**
+
+| Claim | Evidence |
+|---|---|
+| Real embeddings beat the offline baseline where it matters | Ranking cases (right fact among 6, must be top-1): **1/6 hash baseline vs 6/6 bge-small-en-v1.5**; 17/27 vs 26/27 overall. [Table below.](#evaluation) |
+| One user can never read or delete another's memories | Enforced on every Qdrant call, tested through the REST API, the MCP tools and over HTTP |
+| A changed fact replaces the old one | Update cases written first; 4 of 6 failed before the feature existed, all pass now |
+| It works against a real Qdrant server, in a container | Image builds, runs as non-root, memory survives an app restart (2026-11-27, [DEPLOY.md](DEPLOY.md)) |
+| Guarded when exposed | `X-API-Key` on the REST API (the compose file refuses to start without it), bearer key on MCP-over-HTTP (the server refuses to start without it), rate limiting on `/chat` |
+| 161 tests, CI on Python 3.10 and 3.12 | Plus an evaluation gate that fails CI if the score drops |
+
+What is **not** verified yet is just as visible: no real Claude API run, no Claude Desktop connection test,
+no deployment. See [DEPLOY.md](DEPLOY.md) for the full verified / not-verified table.
+
+## Try it in 30 seconds
+
+```bash
+pip install -e ".[dev]" && python examples/demo.py     # offline: no key, no server, no download
+```
+
+```text
+2. A changed fact replaces the old one; it does not pile up
+ asha says: "I live in Mumbai."
+        -> updated: User lives in Mumbai  (was: User lives in Pune)
+        asha now holds 3 memories, not 4
+
+3. Each user only ever sees their own memories
+ asha asks: "Which city does the user live in?"
+        -> User lives in Mumbai
+ ravi asks: "Which city does the user live in?"
+        -> User lives in Delhi
+```
+
+(That is real output, and a test fails if it ever changes. `--embedder fastembed` runs the same tour with a real model.)
 
 ## How it works
 
@@ -171,5 +204,7 @@ How to read this:
 - [ ] Run the evals with `--extractor llm` and record the real numbers (client and tests written; not yet run against the API).
 - [x] Let the LLM extractor assign keys, so it can trigger replacement too (keys limited to a fixed list).
 - [x] Add a memory-update path (a changed fact replaces the old one).
-- [ ] Build the image and run it against a real Qdrant server (written, not yet run).
+- [x] Build the image and run it against a real Qdrant server (2026-11-27; `docker compose up` itself not yet run).
+- [x] MCP server (`remember`, `recall`, `forget`) with an opt-in HTTP mode, bearer auth and user pinning.
+- [ ] Confirm the MCP server inside Claude Desktop (steps written; needs a real desktop run).
 - [ ] Deploy and add the live URL here.

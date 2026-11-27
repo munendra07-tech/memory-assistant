@@ -1,7 +1,15 @@
 [project]
 name = "memory-assistant"
 version = "0.1.0"
-description = "FastAPI assistant with per-user long-term memory on Qdrant, plus an evaluation suite"
+description = "Per-user long-term memory for AI assistants on Qdrant: REST API, MCP server and an evaluation suite"
+readme = "README.md"
+license = { text = "MIT" }
+keywords = ["memory", "llm", "qdrant", "mcp", "fastapi", "agents"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Framework :: FastAPI",
+]
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.110",
