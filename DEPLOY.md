@@ -17,6 +17,8 @@ How to run Memory Assistant in a container and put it on the internet safely.
 | Any real language model, end to end | **Not run.** No key yet |
 | HTTPS, hosting-provider steps below | **Not run.** Written from general practice. Check each provider's current docs. |
 
+| MCP server over HTTP with `MCP_API_KEY` (401 without the key, user pinning, refuses to start without a key) | Run: 11 tests, and a manual check of the CLI with curl (401, 401, 200). **Not run:** behind HTTPS, with a real MCP client other than the SDK's, or against a real Qdrant server |
+
 So the first thing to do on your machine is run the steps in "Run it locally" and fix anything that breaks.
 
 ## Read this before putting it on the internet
@@ -35,6 +37,11 @@ This service stores things people tell it about themselves. Treat it as holding 
 5. **Say what is stored.** A public demo should tell visitors not to enter sensitive information.
 6. **Keep secrets out of git.** `.env` is ignored by `.gitignore`. Never paste keys into code,
    issues or screenshots. If one leaks, rotate it.
+
+7. **MCP over HTTP.** Stdio mode (what Claude Desktop uses) has no network port and needs no key.
+   `--http` mode needs `MCP_API_KEY`, binds to 127.0.0.1 by default, and has no TLS of its own: use an
+   HTTPS reverse proxy. One shared key means anyone holding it can act as any `user_id`; set
+   `MCP_USER_ID` for a single-user deployment. There are no per-user keys and no MCP rate limit yet.
 
 Built: `DELETE /memories/{user_id}` erases everything remembered about one user.
 Not built yet, worth adding before real users: a shared (multi-instance) rate limiter, request logging
@@ -78,6 +85,8 @@ in-memory mode and **loses everything on restart**.)
 | `EMBEDDER` | Optional | `hash` (default, offline baseline) or `fastembed` (needs the `[local]` extra) |
 | `RATE_LIMIT_PER_MINUTE` | Optional | Calls to `/chat` per client address per minute. Default 30, `0` disables |
 | `PORT` | Set by most hosts | Port the server listens on. Default 8000 |
+| `MCP_API_KEY` | For MCP over HTTP | Required by `python -m app.mcp_server --http`; clients send `Authorization: Bearer <key>`. The server exits without it |
+| `MCP_USER_ID` | Optional | Pins every MCP tool call to this one user; the caller's `user_id` is ignored |
 
 ## Option A: one small server (VPS) with HTTPS
 

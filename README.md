@@ -112,6 +112,15 @@ To connect Claude Desktop, add this to its MCP configuration file (use your own 
 }
 ```
 
+For a server other machines can reach, there is an opt-in HTTP mode with a required bearer key:
+
+```bash
+MCP_API_KEY=<a long random value> python -m app.mcp_server --http    # 127.0.0.1:8000/mcp
+```
+
+It refuses to start without the key, and `MCP_USER_ID` pins all calls to one user. It has no TLS and
+no per-user keys; see [DEPLOY.md](DEPLOY.md) before exposing it.
+
 Without `QDRANT_URL` the memory lives inside the server process and is lost when the client closes it.
 The test suite starts the server as a subprocess and calls all three tools over stdio. Connecting
 Claude Desktop itself has **not** been tested in this repository.
