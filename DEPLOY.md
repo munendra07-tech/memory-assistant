@@ -79,6 +79,7 @@ in-memory mode and **loses everything on restart**.)
 | `API_KEY` | Yes in production | Clients send it as the `X-API-Key` header |
 | `QDRANT_URL` | For persistence | e.g. `http://qdrant:6333`. Unset means in-memory (data lost on restart) |
 | `QDRANT_API_KEY` | For a hosted Qdrant | Passed to the Qdrant client |
+| `QDRANT_PATH` | Optional | A folder for on-disk memory without a server (single process; ignored if `QDRANT_URL` is set). Meant for a laptop and Claude Desktop, not for a deployed service |
 | `LLM_PROVIDER` | Optional | `anthropic` for Claude (needs `ANTHROPIC_API_KEY` and `LLM_MODEL`), or leave empty for an OpenAI-style server |
 | `ANTHROPIC_API_KEY`, `LLM_EFFORT`, `LLM_MAX_TOKENS` | With `anthropic` | Key from the Anthropic console, effort level (or `none`), and the reply length cap |
 | `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` | Optional | An OpenAI-style model. Without any model settings: offline echo mode |

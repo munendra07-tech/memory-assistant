@@ -61,3 +61,19 @@ def test_the_mcp_server_keeps_memory_on_disk_across_processes(tmp_path):
         assert [m["text"] for m in found["memories"]] == ["I live in Pune."]
 
     asyncio.run(run())
+
+
+def test_importing_app_main_does_not_open_a_store(tmp_path):
+    """Importing must have no side effects; `app` (what uvicorn loads) is built on first lookup."""
+    import subprocess
+
+    code = (
+        "import app.main as m, sys;"
+        "assert m._app is None, 'store was opened at import time';"
+        "a = m.app;"
+        "assert a is m.app and hasattr(a, 'routes')"
+    )
+    env = dict(os.environ, EMBEDDER="hash", QDRANT_PATH=str(tmp_path / "mem"))
+    env.pop("QDRANT_URL", None)
+    result = subprocess.run([sys.executable, "-c", code], env=env, cwd=str(ROOT), capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

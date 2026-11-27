@@ -160,4 +160,16 @@ def create_app(
     return app
 
 
-app = create_app()
+_app = None
+
+
+def __getattr__(name):
+    """`uvicorn app.main:app` looks `app` up here. It is built on first use, not at import time:
+    building it opens the store, and the MCP server imports this module, so an import-time store
+    would open an on-disk QDRANT_PATH folder twice in one process."""
+    global _app
+    if name == "app":
+        if _app is None:
+            _app = create_app()
+        return _app
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
