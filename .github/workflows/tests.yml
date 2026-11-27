@@ -25,6 +25,8 @@ jobs:
         run: pytest -q
       - name: Evaluation gate (fails if fewer than 17 of 27 cases pass)
         run: python evals/run_evals.py --min-pass 17
+      - name: Harder evaluation set, hash baseline (fails if fewer than 12 of 24 cases pass)
+        run: python evals/run_evals.py --cases evals/cases_extra.jsonl --min-pass 12
 
   # The jobs above use Qdrant's in-memory mode. This one runs the store and the MCP server
   # against a real Qdrant server, so persistence and per-user isolation are proven on every push.
