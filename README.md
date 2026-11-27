@@ -16,7 +16,7 @@ well it all works. Use it as a REST service or plug it into Claude Desktop and o
 | A changed fact replaces the old one | Update cases written first; 4 of 6 failed before the feature existed, all pass now |
 | It works against a real Qdrant server, in a container | Image builds, runs as non-root, memory survives an app restart (2026-11-27, [DEPLOY.md](DEPLOY.md)) |
 | Guarded when exposed | `X-API-Key` on the REST API (the compose file refuses to start without it), bearer key on MCP-over-HTTP (the server refuses to start without it), rate limiting on `/chat` |
-| 161 tests, CI on Python 3.10 and 3.12 | Plus an evaluation gate that fails CI if the score drops |
+| 161 tests, checked on every push | CI runs them on Python 3.10 and 3.12, runs the store and MCP server against a real Qdrant server (`qdrant/qdrant:v1.20.0`), builds the Docker image and checks it, and fails if the eval score drops |
 
 What is **not** verified yet is just as visible: no real Claude API run, no Claude Desktop connection test,
 no deployment. See [DEPLOY.md](DEPLOY.md) for the full verified / not-verified table.
@@ -167,7 +167,7 @@ docker compose up --build   # app + Qdrant server, memories persist
 
 The API requires an `X-API-Key` header whenever `API_KEY` is set. See [DEPLOY.md](DEPLOY.md) for the
 security checklist, deployment options, and exactly which parts have and have not been verified
-(the image build and a real Qdrant server were run on 2026-11-27; `docker compose up` itself, fastembed in Docker and a hosted Qdrant have not been).
+(the image build and a real Qdrant server were run on 2026-11-27 and are now checked by CI on every push; `docker compose up` itself, fastembed in Docker and a hosted Qdrant have not been run).
 
 ## Evaluation
 
