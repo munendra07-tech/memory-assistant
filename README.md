@@ -17,7 +17,7 @@ well it all works. Use it as a REST service or plug it into Claude Desktop and o
 | A harder second eval set, written before it was run | 24 cases: **12/24 hash baseline vs 23/24 real model**; isolation 6/6 on both; the one miss is shown ([details](#a-harder-second-set-24-cases)) |
 | It works against a real Qdrant server, in a container | Image builds, runs as non-root, memory survives an app restart (2026-11-27, [DEPLOY.md](DEPLOY.md)) |
 | Guarded when exposed | `X-API-Key` on the REST API (the compose file refuses to start without it), bearer key on MCP-over-HTTP (the server refuses to start without it), rate limiting on `/chat` |
-| 161 tests, checked on every push | CI runs them on Python 3.10 and 3.12, runs the store and MCP server against a real Qdrant server (`qdrant/qdrant:v1.20.0`), builds the Docker image and checks it, and fails if the eval score drops |
+| 161 tests, checked on every push | CI runs them on Python 3.10 and 3.12, runs the store and MCP server against a real Qdrant server (`qdrant/qdrant:v1.20.0`), builds the Docker image and checks it, runs the real compose stack end to end (a fact survives an app restart), and fails if the eval score drops |
 
 What is **not** verified yet is just as visible: no real Claude API run, no Claude Desktop connection test,
 no deployment. See [DEPLOY.md](DEPLOY.md) for the full verified / not-verified table.
@@ -168,7 +168,7 @@ docker compose up --build   # app + Qdrant server, memories persist
 
 The API requires an `X-API-Key` header whenever `API_KEY` is set. See [DEPLOY.md](DEPLOY.md) for the
 security checklist, deployment options, and exactly which parts have and have not been verified
-(the image build and a real Qdrant server were run on 2026-11-27 and are now checked by CI on every push; `docker compose up` itself, fastembed in Docker and a hosted Qdrant have not been run).
+(the image build and a real Qdrant server were run on 2026-11-27 and are now checked by CI on every push; fastembed in Docker and a hosted Qdrant have not been run; `docker compose up` was run on 2026-11-27 via `scripts/compose_smoke.sh`).
 
 ## Evaluation
 
@@ -227,7 +227,7 @@ users, multi-step updates and a few mixed cases. Run with `--cases evals/cases_e
 - [ ] Run the evals with `--extractor llm` and record the real numbers (client and tests written; not yet run against the API).
 - [x] Let the LLM extractor assign keys, so it can trigger replacement too (keys limited to a fixed list).
 - [x] Add a memory-update path (a changed fact replaces the old one).
-- [x] Build the image and run it against a real Qdrant server (2026-11-27; `docker compose up` itself not yet run).
+- [x] Build the image and run it against a real Qdrant server (2026-11-27, including `docker compose up` via `scripts/compose_smoke.sh`).
 - [x] MCP server (`remember`, `recall`, `forget`) with an opt-in HTTP mode, bearer auth and user pinning.
 - [ ] Confirm the MCP server inside Claude Desktop (steps written; needs a real desktop run).
 - [ ] Deploy and add the live URL here.
