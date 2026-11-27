@@ -11,7 +11,9 @@ Run it over stdio (what MCP clients such as Claude Desktop launch):
     python -m app.mcp_server
 
 It uses the same environment variables as the web app: QDRANT_URL, QDRANT_API_KEY and EMBEDDER.
-Without QDRANT_URL, memory lives in-process and is lost when the server stops.
+Set QDRANT_PATH=/some/folder to keep memory on disk without running a Qdrant server (one process
+at a time may use the folder). With neither QDRANT_URL nor QDRANT_PATH, memory lives in-process
+and is lost when the server stops.
 
 Over HTTP (opt-in, for a server other machines can reach):
 

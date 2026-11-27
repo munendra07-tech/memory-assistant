@@ -131,20 +131,33 @@ pip install -e ".[mcp]"
 python -m app.mcp_server        # speaks MCP over stdio; clients launch this themselves
 ```
 
-To connect Claude Desktop, add this to its MCP configuration file (use your own path):
+### Connect Claude Desktop (one command)
+
+```bash
+pip install -e ".[mcp]"                    # once, from this folder
+python scripts/connect_claude_desktop.py   # check the server, then add it to Claude Desktop
+```
+
+The script first starts the server the way Claude Desktop will and calls `remember`, `recall` and `forget`
+once; if that fails it writes nothing. Otherwise it adds a `memory-assistant` entry to
+`claude_desktop_config.json` (keeping your other servers, after saving a timestamped backup, and refusing to touch
+a file that is not valid JSON). It writes no API key. Memory is kept on disk in
+`~/.memory-assistant/<embedder>`, so it survives restarting Claude Desktop. Then quit Claude Desktop completely and
+reopen it. Useful flags: `--dry-run` (show, change nothing), `--remove`, `--embedder fastembed` (real model,
+downloads about 130 MB on first use).
+
+The entry it writes is just:
 
 ```json
-{
-  "mcpServers": {
-    "memory-assistant": {
-      "command": "python",
-      "args": ["-m", "app.mcp_server"],
-      "cwd": "/absolute/path/to/memory-assistant",
-      "env": { "EMBEDDER": "fastembed", "QDRANT_URL": "http://localhost:6333" }
-    }
-  }
-}
+{ "mcpServers": { "memory-assistant": {
+    "command": "/path/to/your/python", "args": ["-m", "app.mcp_server"],
+    "env": { "EMBEDDER": "hash", "QDRANT_PATH": "/home/you/.memory-assistant/hash" } } } }
 ```
+
+(There is no `cwd`: it is not a documented field, so the package is pip-installed instead.) On-disk mode lets
+one process use the folder at a time. For a shared or multi-client setup use `QDRANT_URL` with a Qdrant server.
+The script and the config it writes are tested end to end here (including launching the server from the written
+config in a separate process and recalling a stored fact); **a real Claude Desktop run has not been confirmed yet.**
 
 For a server other machines can reach, there is an opt-in HTTP mode with a required bearer key:
 
@@ -155,9 +168,9 @@ MCP_API_KEY=<a long random value> python -m app.mcp_server --http    # 127.0.0.1
 It refuses to start without the key, and `MCP_USER_ID` pins all calls to one user. It has no TLS and
 no per-user keys; see [DEPLOY.md](DEPLOY.md) before exposing it.
 
-Without `QDRANT_URL` the memory lives inside the server process and is lost when the client closes it.
-The test suite starts the server as a subprocess and calls all three tools over stdio. Connecting
-Claude Desktop itself has **not** been tested in this repository.
+With neither `QDRANT_URL` nor `QDRANT_PATH` the memory lives inside the server process and is lost when the client
+closes it. The test suite starts the server as a subprocess and calls all three tools over stdio, over HTTP, and
+against on-disk and server-backed storage.
 
 ## Docker and deployment
 

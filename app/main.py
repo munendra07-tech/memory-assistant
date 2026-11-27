@@ -50,7 +50,13 @@ class ChatResponse(BaseModel):
 
 def _default_store() -> MemoryStore:
     url = os.getenv("QDRANT_URL")
-    client = QdrantClient(url=url, api_key=os.getenv("QDRANT_API_KEY")) if url else QdrantClient(":memory:")
+    path = os.getenv("QDRANT_PATH")
+    if url:
+        client = QdrantClient(url=url, api_key=os.getenv("QDRANT_API_KEY"))
+    elif path:
+        client = QdrantClient(path=path)  # on-disk and single-process: memory survives restarts, no server needed
+    else:
+        client = QdrantClient(":memory:")
     return MemoryStore(embedder_from_name(os.getenv("EMBEDDER", "hash")), client=client)
 
 
@@ -154,4 +160,16 @@ def create_app(
     return app
 
 
-app = create_app()
+_app = None
+
+
+def __getattr__(name):
+    """`uvicorn app.main:app` looks `app` up here. It is built on first use, not at import time:
+    building it opens the store, and the MCP server imports this module, so an import-time store
+    would open an on-disk QDRANT_PATH folder twice in one process."""
+    global _app
+    if name == "app":
+        if _app is None:
+            _app = create_app()
+        return _app
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
