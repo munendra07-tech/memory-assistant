@@ -72,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--embedder", choices=["hash", "fastembed"], default="hash")
     parser.add_argument("--min-pass", type=int, default=0, help="exit 1 if fewer cases pass (a regression gate for CI)")
     parser.add_argument("--extractor", choices=["rules", "llm"], default="rules")
+    parser.add_argument("--cases", type=Path, default=None, help="a different case file (default: evals/cases.jsonl)")
     parser.add_argument(
         "--max-llm-calls", type=int, default=60, help="hard cap on language-model calls (spend guard, --extractor llm)"
     )
@@ -89,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
         extractor = extractor_from_name("llm", budgeted)
 
     print(f"embedder: {args.embedder}, extractor: {args.extractor}\n")
-    results = run_all(extractor=extractor, embedder=embedder_from_name(args.embedder))
+    results = run_all(extractor=extractor, embedder=embedder_from_name(args.embedder), cases_path=args.cases)
     by_category: dict[str, list[bool]] = defaultdict(list)
     print(f"{'case':<24}{'category':<12}{'result':<8}details")
     for r in results:
