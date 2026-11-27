@@ -14,6 +14,7 @@ well it all works. Use it as a REST service or plug it into Claude Desktop and o
 | Real embeddings beat the offline baseline where it matters | Ranking cases (right fact among 6, must be top-1): **1/6 hash baseline vs 6/6 bge-small-en-v1.5**; 17/27 vs 26/27 overall. [Table below.](#evaluation) |
 | One user can never read or delete another's memories | Enforced on every Qdrant call, tested through the REST API, the MCP tools and over HTTP |
 | A changed fact replaces the old one | Update cases written first; 4 of 6 failed before the feature existed, all pass now |
+| A harder second eval set, written before it was run | 24 cases: **12/24 hash baseline vs 23/24 real model**; isolation 6/6 on both; the one miss is shown ([details](#a-harder-second-set-24-cases)) |
 | It works against a real Qdrant server, in a container | Image builds, runs as non-root, memory survives an app restart (2026-11-27, [DEPLOY.md](DEPLOY.md)) |
 | Guarded when exposed | `X-API-Key` on the REST API (the compose file refuses to start without it), bearer key on MCP-over-HTTP (the server refuses to start without it), rate limiting on `/chat` |
 | 161 tests, checked on every push | CI runs them on Python 3.10 and 3.12, runs the store and MCP server against a real Qdrant server (`qdrant/qdrant:v1.20.0`), builds the Docker image and checks it, and fails if the eval score drops |
@@ -197,6 +198,28 @@ How to read this:
 - The update cases were written first: before the update feature existed, 4 of the 6 failed.
 - Twenty-seven cases and one model is a small test. Treat the numbers as a regression check and a
   fair comparison, not a benchmark. CI runs the hash baseline and fails below 17 of 27.
+
+### A harder second set (24 cases)
+
+`evals/cases_extra.jsonl` holds 24 harder cases, **written and committed before they were run** so they
+could not be tuned to a result: ranking among six facts with no word overlap, near-identical facts across
+users, multi-step updates and a few mixed cases. Run with `--cases evals/cases_extra.jsonl`. Measured on
+2026-11-27, rule-based extractor in both columns:
+
+| Category | Cases | Hash baseline | Real model (bge-small-en-v1.5) |
+|---|---|---|---|
+| ranked-hard (right fact among 6, top-1, question shares no words) | 10 | 1 | 9 |
+| isolation-hard (near-identical facts across users, no leaks) | 6 | 6 | 6 |
+| update-hard (several moves, accumulation, repeats) | 6 | 5 | 6 |
+| mixed (negation, two facts needed) | 2 | 0 | 2 |
+| **overall** | **24** | **12** | **23** |
+
+- The one real-model miss is `rank2-transport`: for "How does the user get around?" the top result was
+  "User works as a teacher", not "User has a bicycle". The extractor stored the bicycle fact correctly, so
+  this is a genuine retrieval miss of a small model, and it stays in the table.
+- Isolation held in every case with both embedders (6/6): no user's text leaked into another's results.
+- The hash baseline's 12/24 is a regression guard in CI (`--min-pass 12`), not an achievement.
+- Same caveat as before: 24 more cases is still a small test, not a benchmark.
 
 ## Roadmap
 
