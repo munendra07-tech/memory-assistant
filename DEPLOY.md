@@ -6,12 +6,12 @@ How to run Memory Assistant in a container and put it on the internet safely.
 
 | Item | Status |
 |---|---|
-| App, API-key auth, rate limiting, delete-all, validation, tests (89) | Run and passing; rate limit and delete-all also checked on a live server |
+| App, API-key auth, rate limiting, delete-all, validation, tests (160 as of the MCP auth merge) | Run and passing; rate limit and delete-all also checked on a live server |
 | Package installs from `pyproject.toml` + `app/` alone, server starts, health check command works | Run in a clean directory, mimicking the image's steps |
 | `docker-compose.yml` syntax; refuses to start without `API_KEY` | Run (`docker compose config`) |
-| `docker build` of the Dockerfile | **Not run.** The build environment had no Docker daemon. |
-| App talking to a real Qdrant **server** (`QDRANT_URL`) | **Not run.** Only Qdrant's in-memory mode was tested. |
-| `qdrant/qdrant:v1.20.0` image tag exists | **Not checked.** If the pull fails, pick a tag close to `pip show qdrant-client`. |
+| `docker build` of the Dockerfile | Run on 2026-11-27 (Docker 29.9.3, `python:3.12-slim`): builds, container runs as uid 10001, `/health` ok, built-in HEALTHCHECK reports healthy. The build sandbox needed its own CA certificate added for pip (its network proxy re-signs HTTPS); that was done in a temporary copy, not in the Dockerfile, so a normal network is expected to need nothing. |
+| App talking to a real Qdrant **server** (`QDRANT_URL`) | Run on 2026-11-27 with `qdrant/qdrant:v1.20.0` and `EMBEDDER=hash`: a stored fact survived replacing the app container, a request without the key got 401, and another user saw nothing. Run with plain `docker run` on one network, **not** `docker compose up`. **Not run:** fastembed inside Docker, a hosted Qdrant, the MCP server against a Qdrant server |
+| `qdrant/qdrant:v1.20.0` image tag exists | Checked 2026-11-27: Docker Hub lists the tag and the image pulled (the first pull hit a rate limit, 429; a retry worked) |
 | Real embedding model (fastembed, bge-small-en-v1.5) in the evals | Run; results in the README. **Not run** inside Docker or the server |
 | Claude client (`LLM_PROVIDER=anthropic`) | Tested offline with a fake client and real SDK response objects. **Not run against the real API** |
 | Any real language model, end to end | **Not run.** No key yet |

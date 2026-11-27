@@ -134,7 +134,7 @@ docker compose up --build   # app + Qdrant server, memories persist
 
 The API requires an `X-API-Key` header whenever `API_KEY` is set. See [DEPLOY.md](DEPLOY.md) for the
 security checklist, deployment options, and exactly which parts have and have not been verified
-(the image build and a real Qdrant server have not been run yet).
+(the image build and a real Qdrant server were run on 2026-11-27; `docker compose up` itself, fastembed in Docker and a hosted Qdrant have not been).
 
 ## Evaluation
 
