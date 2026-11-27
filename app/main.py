@@ -50,7 +50,13 @@ class ChatResponse(BaseModel):
 
 def _default_store() -> MemoryStore:
     url = os.getenv("QDRANT_URL")
-    client = QdrantClient(url=url, api_key=os.getenv("QDRANT_API_KEY")) if url else QdrantClient(":memory:")
+    path = os.getenv("QDRANT_PATH")
+    if url:
+        client = QdrantClient(url=url, api_key=os.getenv("QDRANT_API_KEY"))
+    elif path:
+        client = QdrantClient(path=path)  # on-disk and single-process: memory survives restarts, no server needed
+    else:
+        client = QdrantClient(":memory:")
     return MemoryStore(embedder_from_name(os.getenv("EMBEDDER", "hash")), client=client)
 
 
