@@ -53,6 +53,24 @@ def test_requests_without_the_right_key_get_401(headers):
     assert json.loads(body) == {"error": "unauthorized"}
 
 
+def test_lifespan_events_pass_through_and_websockets_are_refused():
+    seen = []
+
+    async def inner(scope, receive, send):
+        seen.append(scope["type"])
+
+    app = BearerAuth(inner, KEY)
+    sent = []
+
+    async def send(message):
+        sent.append(message)
+
+    asyncio.run(app({"type": "lifespan"}, None, send))
+    asyncio.run(app({"type": "websocket", "headers": []}, None, send))
+    assert seen == ["lifespan"]  # the websocket never reached the app
+    assert sent == [{"type": "websocket.close", "code": 1008}]
+
+
 def test_the_right_key_passes_through():
     status, body = asyncio.run(_call(BearerAuth(_inner, KEY), [(b"authorization", f"Bearer {KEY}".encode())]))
     assert (status, body) == (200, b"ok")
@@ -66,6 +84,9 @@ def test_an_empty_key_is_refused_at_construction():
 def test_http_mode_refuses_to_start_without_a_key(monkeypatch):
     monkeypatch.delenv("MCP_API_KEY", raising=False)
     monkeypatch.setenv("EMBEDDER", "hash")
+    import app.mcp_server as module
+
+    monkeypatch.setattr(module, "create_server", lambda **_: pytest.fail("built a server before checking the key"))
     with pytest.raises(SystemExit) as exc:
         main(["--http"])
     assert "MCP_API_KEY" in str(exc.value)

@@ -84,8 +84,11 @@ class BearerAuth:
         self.key = key.encode()
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":  # lifespan events carry no request to check
+        if scope["type"] == "lifespan":  # startup and shutdown carry no request to check
             return await self.app(scope, receive, send)
+        if scope["type"] != "http":  # anything else (a websocket) is not served at all
+            await send({"type": "websocket.close", "code": 1008})
+            return
         header = dict(scope["headers"]).get(b"authorization", b"")
         scheme, _, token = header.partition(b" ")
         if scheme.lower() == b"bearer" and secrets.compare_digest(token, self.key):
@@ -145,13 +148,13 @@ def main(argv: Optional[list] = None) -> None:
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
 
+    key = os.getenv("MCP_API_KEY", "")
+    if args.http and not key:
+        raise SystemExit("MCP_API_KEY is not set: refusing to serve HTTP without authentication.")
     server = create_server(pinned_user=os.getenv("MCP_USER_ID") or None)
     if not args.http:
         server.run()
         return
-    key = os.getenv("MCP_API_KEY", "")
-    if not key:
-        raise SystemExit("MCP_API_KEY is not set: refusing to serve HTTP without authentication.")
     import uvicorn
 
     uvicorn.run(build_http_app(server, key), host=args.host, port=args.port)
