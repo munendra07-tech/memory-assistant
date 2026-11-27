@@ -76,3 +76,12 @@ jobs:
       - name: Show logs if it failed
         if: failure()
         run: docker logs app
+
+  # Runs the real docker-compose.yml: app + Qdrant server, a fact surviving an app restart,
+  # auth, isolation, Qdrant not reachable from the host, and the non-root user.
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose smoke test
+        run: bash scripts/compose_smoke.sh
