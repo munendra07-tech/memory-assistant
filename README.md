@@ -86,6 +86,36 @@ By default memory is held in Qdrant's in-memory mode and is lost on restart. Set
 to use a real server. To use a language model set `LLM_API_KEY` and `LLM_MODEL` (and
 `LLM_BASE_URL` for non-OpenAI servers); without them the app runs in an offline echo mode.
 
+## Use it from an AI assistant (MCP)
+
+`app/mcp_server.py` exposes the memory store over the [Model Context Protocol](https://modelcontextprotocol.io)
+with three tools: `remember`, `recall` and `forget`. It calls no language model, so it needs no API key.
+The assistant decides what is worth remembering and passes it in.
+
+```bash
+pip install -e ".[mcp]"
+python -m app.mcp_server        # speaks MCP over stdio; clients launch this themselves
+```
+
+To connect Claude Desktop, add this to its MCP configuration file (use your own path):
+
+```json
+{
+  "mcpServers": {
+    "memory-assistant": {
+      "command": "python",
+      "args": ["-m", "app.mcp_server"],
+      "cwd": "/absolute/path/to/memory-assistant",
+      "env": { "EMBEDDER": "fastembed", "QDRANT_URL": "http://localhost:6333" }
+    }
+  }
+}
+```
+
+Without `QDRANT_URL` the memory lives inside the server process and is lost when the client closes it.
+The test suite starts the server as a subprocess and calls all three tools over stdio. Connecting
+Claude Desktop itself has **not** been tested in this repository.
+
 ## Docker and deployment
 
 ```bash
