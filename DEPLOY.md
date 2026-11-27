@@ -10,13 +10,14 @@ How to run Memory Assistant in a container and put it on the internet safely.
 | Package installs from `pyproject.toml` + `app/` alone, server starts, health check command works | Run in a clean directory, mimicking the image's steps |
 | `docker-compose.yml` syntax; refuses to start without `API_KEY` | Run (`docker compose config`) |
 | `docker build` of the Dockerfile | Run on 2026-11-27 (Docker 29.9.3, `python:3.12-slim`): builds, container runs as uid 10001, `/health` ok, built-in HEALTHCHECK reports healthy. The build sandbox needed its own CA certificate added for pip (its network proxy re-signs HTTPS); that was done in a temporary copy, not in the Dockerfile, so a normal network is expected to need nothing. |
-| App talking to a real Qdrant **server** (`QDRANT_URL`) | Run on 2026-11-27 with `qdrant/qdrant:v1.20.0` and `EMBEDDER=hash`: a stored fact survived replacing the app container, a request without the key got 401, and another user saw nothing. Run with plain `docker run` on one network, **not** `docker compose up`. **Not run:** fastembed inside Docker, a hosted Qdrant, the MCP server against a Qdrant server |
+| App talking to a real Qdrant **server** (`QDRANT_URL`) | Run on 2026-11-27 with `qdrant/qdrant:v1.20.0` and `EMBEDDER=hash`: a stored fact survived replacing the app container, a request without the key got 401, and another user saw nothing. Run with plain `docker run` on one network, **not** `docker compose up`. **Not run:** fastembed inside Docker, a hosted Qdrant |
 | `qdrant/qdrant:v1.20.0` image tag exists | Checked 2026-11-27: Docker Hub lists the tag and the image pulled (the first pull hit a rate limit, 429; a retry worked) |
 | Real embedding model (fastembed, bge-small-en-v1.5) in the evals | Run; results in the README. **Not run** inside Docker or the server |
 | Claude client (`LLM_PROVIDER=anthropic`) | Tested offline with a fake client and real SDK response objects. **Not run against the real API** |
 | Any real language model, end to end | **Not run.** No key yet |
 | HTTPS, hosting-provider steps below | **Not run.** Written from general practice. Check each provider's current docs. |
 
+| MCP server against a real Qdrant server (`qdrant/qdrant:v1.20.0`, `EMBEDDER=hash`) | Run on 2026-11-27 with a throwaway script (not in the test suite): over stdio, a fact stored by one server process was recalled by a brand-new process; a keyed fact was replaced (`updated`); `forget` as another user returned `deleted: false` and as the owner `deleted: true`. Over HTTP with `MCP_API_KEY` and `MCP_USER_ID=ravi`, a caller claiming `user_id=asha` got only ravi's memory. Qdrant ran as a plain container reached on 127.0.0.1, not inside compose |
 | MCP server over HTTP with `MCP_API_KEY` (401 without the key, user pinning, refuses to start without a key) | Run: 11 tests, and a manual check of the CLI with curl (401, 401, 200). **Not run:** behind HTTPS, with a real MCP client other than the SDK's, or against a real Qdrant server |
 
 So the first thing to do on your machine is run the steps in "Run it locally" and fix anything that breaks.
